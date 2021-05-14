@@ -1,0 +1,10 @@
+numpy
+pandas
+scikit-learn
+matplotlib
+pytest
+ipykernel
+seaborn
+tqdm
+opencv-python
+typeguard

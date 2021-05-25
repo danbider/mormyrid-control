@@ -64,8 +64,8 @@ if __name__ == "__main__":
     frame_pad = 0
     for j in range(df_w_frame_nums.shape[0]):
         inds_dict[df_w_frame_nums["Fish"][j]][df_w_frame_nums["Condition"][j]].append(
-            np.arange(df_w_frame_nums["Original Vid Frame START"][j] - frame_pad,
-                      df_w_frame_nums["Original Vid Frame STOP"][j] + 1 + frame_pad))
+            np.arange(df_w_frame_nums["Video Event START"][j] - frame_pad,
+                      df_w_frame_nums["Video Event STOP"][j] + 1 + frame_pad))
 
     # grab the relevant 3d path and video path
     points_3d_path_dict = make_empty_hierarchical_dict(list(unique_names), list(unique_conds))

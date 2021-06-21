@@ -8,3 +8,4 @@ seaborn
 tqdm
 opencv-python
 typeguard
+hoggorm

@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# PyCharm
+.idea/
+
 # PyBuilder
 target/
 
@@ -130,3 +133,13 @@ dmypy.json
 
 # Pyre type checker
 .pyre/
+
+# images
+*.png
+*.jpg
+*.eps
+
+# videos
+*.avi
+*.mov
+*.mp4

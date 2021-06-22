@@ -53,3 +53,19 @@ def write_video(
     for i in range(len(img_array)):
         out.write(img_array[i])
     out.release()
+
+
+# TODO: test
+def read_frame_at_idx(video_path, frame_idx):
+    vidcap = cv2.VideoCapture(str(video_path))
+    count = 0
+    success = True
+    while success:
+        success, image = vidcap.read()
+        if count >= frame_idx:
+            return image
+        count += 1
+
+    if count < frame_idx:
+        print(f"Request frame {frame_idx} is too large")
+        return None

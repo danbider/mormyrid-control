@@ -143,3 +143,7 @@ dmypy.json
 *.avi
 *.mov
 *.mp4
+
+# data
+data/
+.DS_Store

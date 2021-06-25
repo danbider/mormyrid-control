@@ -8,6 +8,7 @@ import cv2
 from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
+import io
 
 # pickle utils
 @typechecked
@@ -96,30 +97,55 @@ def read_frame_at_idx(video_path, frame_idx):
         return None
 
 
-def plot_chin_spline(chin_trial_arr, poly_evals, bp_names, out_file, start_frame=0, end_frame=-1):
+def get_img_from_fig(fig, dpi=128):
+    io_buf = io.BytesIO()
+    fig.savefig(io_buf, format="raw", dpi=dpi)
+    io_buf.seek(0)
+    img_arr = np.reshape(
+        np.frombuffer(io_buf.getvalue(), dtype=np.uint8),
+        newshape=(int(fig.bbox.bounds[3]), int(fig.bbox.bounds[2]), -1),
+    )
+    io_buf.close()
+    return img_arr[:, :, :3]
+
+
+def plot_chin_spline(
+    chin_trial_arr,
+    bp_names,
+    poly_evals,
+    curvatures,
+    out_file,
+    start_frame=0,
+    end_frame=-1,
+    dpi=128
+):
     img_array = []
 
+    chin_trial_arr_copy = np.copy(chin_trial_arr)
+    chin_trial_arr_copy -= np.expand_dims(chin_trial_arr_copy[:, 0, :], 1)
+    #chin_trial_arr_copy[:, :, 2] -= 
     # Get global mins/maxes for plotting
-    x_min = np.min(chin_trial_arr[:, :, 0])
-    y_min = np.min(chin_trial_arr[:, :, 1])
-    z_min = np.min(chin_trial_arr[:, :, 2])
+    # NOTE: using percentile here to deal with outliers
+    x_min = np.min(chin_trial_arr_copy[start_frame:end_frame, :, 0])
+    y_min = np.min(chin_trial_arr_copy[start_frame:end_frame, :, 1])
+    z_min = np.min(chin_trial_arr_copy[start_frame:end_frame, :, 2])
 
-    x_max = np.max(chin_trial_arr[:, :, 0])
-    y_max = np.max(chin_trial_arr[:, :, 1])
-    z_max = np.max(chin_trial_arr[:, :, 2])
-    
+    x_max = np.max(chin_trial_arr_copy[start_frame:end_frame, :, 0])
+    y_max = np.max(chin_trial_arr_copy[start_frame:end_frame, :, 1])
+    z_max = np.max(chin_trial_arr_copy[start_frame:end_frame, :, 2])
+
     if end_frame == -1:
-        end_frame = chin_trial_arr.shape[0]
+        end_frame = chin_trial_arr_copy.shape[0]
+        
+    assert end_frame >= start_frame
 
     for frame_idx in tqdm(range(start_frame, end_frame)):
-        chin_frame_points = chin_trial_arr[frame_idx]
-
+        chin_frame_points = chin_trial_arr_copy[frame_idx]
+        max_curvature = np.max(curvatures[frame_idx])
+        
         x = chin_frame_points[:, 0]
-        x -= x[0]
         y = chin_frame_points[:, 1]
-        y -= y[0]
         z = chin_frame_points[:, 2]
-        z -= z[0]
 
         xi = poly_evals[frame_idx, 0, :]
         xi -= xi[0]
@@ -128,22 +154,18 @@ def plot_chin_spline(chin_trial_arr, poly_evals, bp_names, out_file, start_frame
         zi = poly_evals[frame_idx, 2, :]
         zi -= zi[0]
 
-        fig = plt.figure()
+        fig = plt.figure(dpi=dpi)
         ax = fig.add_subplot(111, projection="3d")
         ax.scatter(xs=xi, ys=yi, zs=zi, c="b")
         ax.scatter(x, y, z, c="r")
 
         # ax.scatter(x_curve, y_curve, z_curve, c="r")
         ax.view_init(elev=-90, azim=-90)
-        # ax.title.set_text(f"$\kappa$: {max_curve}")
+        ax.title.set_text(f"$\kappa$: {max_curvature}")
 
         for i, txt in enumerate(range(chin_frame_points.shape[0])):
             if "base" in bp_names[i] or "end" in bp_names[i]:
                 ax.text(x[i], y[i], z[i], bp_names[i])
-
-        # ax.axes.set_xlim3d([-1, 1])
-        # ax.axes.set_ylim3d([-1, 1])
-        # ax.axes.set_zlim3d([-1, 1])
 
         ax.axes.set_xlim3d([x_min, x_max])
         ax.axes.set_ylim3d([y_min, y_max])
@@ -155,13 +177,9 @@ def plot_chin_spline(chin_trial_arr, poly_evals, bp_names, out_file, start_frame
         ax.xaxis.set_tick_params(labelsize=0)
         ax.yaxis.set_tick_params(labelsize=0)
         ax.zaxis.set_tick_params(labelsize=0)
-        ax.set_axis_off()
+        # ax.set_axis_off()
 
-        fig.canvas.draw()
-        chin_plot_image = np.frombuffer(fig.canvas.tostring_rgb(), dtype=np.uint8)
-        chin_plot_image = chin_plot_image.reshape(
-            fig.canvas.get_width_height()[::-1] + (3,)
-        )
+        chin_plot_image = get_img_from_fig(fig, dpi=dpi)
 
         # Convert from RGB to BGR
         chin_plot_image = chin_plot_image[:, :, ::-1]

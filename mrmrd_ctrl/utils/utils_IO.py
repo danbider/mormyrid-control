@@ -9,6 +9,8 @@ from tqdm import tqdm
 import numpy as np
 import matplotlib.pyplot as plt
 import io
+import matplotlib
+import pandas as pd
 
 # pickle utils
 @typechecked
@@ -204,3 +206,31 @@ def plot_chin_spline(
         """
 
     write_video_from_list(img_array=img_array, out_file=out_file, fps=50)
+
+@typechecked
+def plot_trial_curvature(curvatures: np.ndarray, central_moment: str = "mean") -> matplotlib.figure.Figure:
+    if central_moment=="mean":
+        central = np.mean(curvatures, axis=0)
+    elif central_moment == "median":
+        central = np.median(curvatures, axis=0)
+    stderrs = np.std(curvatures, axis=0)/np.sqrt(np.shape(curvatures)[0])
+    fig, ax = plt.subplots(1,1)
+    ax.plot(np.arange(curvatures.shape[1]), central, color = 'blue', label = central_moment)
+    ax.fill_between(np.arange(curvatures.shape[1]), central-stderrs, central+stderrs, color = 'cyan', label='stderr')
+    ax.set_xlabel('chin segment')
+    ax.set_ylabel('curvature')
+    ax.legend()
+    return fig
+
+
+@typechecked
+def reshape_trial_dframe(example_trial: pd.core.frame.DataFrame) -> tuple([np.ndarray, list]):
+    chin_trial_df = example_trial.filter(regex='chin')
+    chin_trial_arr = np.reshape(chin_trial_df.values, (chin_trial_df.values.shape[0], -1, 3))
+    # Get bodypart names
+    bp_names = []
+    for col in chin_trial_df.columns:
+        if col[0] not in bp_names:
+            bp_names.append(col[0])
+
+    return chin_trial_arr, bp_names

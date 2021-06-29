@@ -2,6 +2,9 @@ from typeguard import typechecked
 import numpy as np
 from tqdm import tqdm
 from typing import Callable
+from scipy.signal import medfilt
+import matplotlib
+
 
 # TODO: test
 def compute_curvature_function(x, y, z):
@@ -98,4 +101,15 @@ def compute_curvature_per_frame(
         curvatures[frame_idx, :] = curvature_func(interpolation_points)
     # NOTE: the first value is high; should be discarded
     return curvatures
+
+@typechecked
+def filter_coordinates(raw_numpy_arr: np.ndarray, coordinate_dims: int = 3, medfilt_kernel_size: int = 11) -> np.ndarray:
+    filtered_arr = np.zeros_like(raw_numpy_arr)
+    assert(raw_numpy_arr.shape[1]%coordinate_dims == 0) # make sure the number of cols is divisible by coordinate dims
+    num_bodyparts = raw_numpy_arr.shape[1]//coordinate_dims
+    for i in range(num_bodyparts):
+        col_inds = np.arange(i + i*(coordinate_dims-1),i + i*(coordinate_dims-1) + coordinate_dims)
+        filtered_arr[:, col_inds] = medfilt(raw_numpy_arr[:, col_inds], medfilt_kernel_size)
+    return filtered_arr
+
 

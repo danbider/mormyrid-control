@@ -71,6 +71,9 @@ instance/
 # Sphinx documentation
 docs/_build/
 
+# PyCharm
+.idea/
+
 # PyBuilder
 target/
 
@@ -80,6 +83,9 @@ target/
 # IPython
 profile_default/
 ipython_config.py
+
+# VSCode
+.vscode/
 
 # pyenv
 .python-version
@@ -132,3 +138,13 @@ dmypy.json
 *.png
 *.jpg
 *.eps
+
+# videos
+*.avi
+*.mov
+*.mp4
+
+# data
+data/
+.DS_Store
+

@@ -24,13 +24,20 @@ def load_object(filename: str) -> Any:
     with open(filename, "rb") as input:  # note rb and not wb
         return pickle.load(input)
 
-
 @typechecked
 def sort_alphanumeric(data: list):
     convert = lambda text: int(text) if text.isdigit() else text.lower()
     alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
     return sorted(data, key=alphanum_key)
 
+@typechecked
+def set_or_open_folder(folder_path: str) -> str:
+    if not os.path.isdir(folder_path):
+        os.makedirs(folder_path, exist_ok=True)
+        print("Opened a new folder at: {}".format(folder_path))
+    else:
+        print("The folder already exists at: {}".format(folder_path))
+    return folder_path
 
 @typechecked
 def write_video_from_directory(image_dir: str, out_file: str, fps: int):
@@ -211,15 +218,43 @@ def plot_chin_spline(
 def plot_trial_curvature(curvatures: np.ndarray, central_moment: str = "mean") -> matplotlib.figure.Figure:
     if central_moment=="mean":
         central = np.mean(curvatures, axis=0)
+        stderrs = np.std(curvatures, axis=0) / np.sqrt(np.shape(curvatures)[0])
+        lows = central-stderrs
+        highs = central+stderrs
+        fill_between_label = "stderr"
+
     elif central_moment == "median":
         central = np.median(curvatures, axis=0)
-    stderrs = np.std(curvatures, axis=0)/np.sqrt(np.shape(curvatures)[0])
+        hdi = compute_hdi(curvatures)
+        lows = hdi[0]
+        highs = hdi[1]
+        fill_between_label = "hdi"
+
     fig, ax = plt.subplots(1,1)
     ax.plot(np.arange(curvatures.shape[1]), central, color = 'blue', label = central_moment)
-    ax.fill_between(np.arange(curvatures.shape[1]), central-stderrs, central+stderrs, color = 'cyan', label='stderr')
+    ax.fill_between(np.arange(curvatures.shape[1]), lows,highs, color = 'cyan', label=fill_between_label)
     ax.set_xlabel('chin segment')
     ax.set_ylabel('curvature')
     ax.legend()
+    return fig
+
+@typechecked
+def plot_single_frame_curvature_per_dim(evals: np.ndarray,
+                                        chin_trial_arr: np.ndarray,
+                                        frame_idx: int,
+                                        curvatures: np.ndarray,
+                                        interpolation_points: np.ndarray) -> matplotlib.figure.Figure:
+    fig, axs = plt.subplots(1,4)
+    titles = ["x", "y", "z", "curvature"]
+    x_vals = np.arange(5)
+    for i, ax in enumerate(axs):
+        ax.set_title(titles[i])
+        if i<len(axs)-1:
+            ax.plot(interpolation_points, evals[frame_idx, i, :], color = 'gray')
+            ax.scatter(x_vals, chin_trial_arr[frame_idx, :, i], color = 'black')
+        else:
+            ax.plot(curvatures[frame_idx, 5:], color = 'gray')
+    fig.tight_layout()
     return fig
 
 
@@ -234,3 +269,12 @@ def reshape_trial_dframe(example_trial: pd.core.frame.DataFrame) -> tuple([np.nd
             bp_names.append(col[0])
 
     return chin_trial_arr, bp_names
+
+@typechecked
+def compute_hdi(arr: np.ndarray, percentage: float = 95.0)->tuple([np.ndarray, np.ndarray]):
+    '''arr: np.ndarray(shape = (num_frames, num_interpolation_points))
+    returns: a tupple with "low" and "high" arrays, each np.ndarray(shape = (num_interpolation_points,))'''
+    alpha_over_two_percentage = (100. - percentage)/2.
+    low_percentile = alpha_over_two_percentage
+    high_percentile = 100.-alpha_over_two_percentage
+    return (np.percentile(arr, low_percentile, axis=0), np.percentile(arr, high_percentile, axis=0))

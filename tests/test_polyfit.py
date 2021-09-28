@@ -1,6 +1,7 @@
 import numpy as np
 import pytest
 from mrmrd_ctrl.utils.polyfitting import fit_3D_polynomial, filter_coordinates
+from mrmrd_ctrl.utils.utils_IO import compute_hdi
 
 @pytest.fixture
 def fake_poly_data():
@@ -39,6 +40,13 @@ def test_filtering_equality() -> None:
     raw_numpy_arr = np.random.normal(size=(1000, 15))
     filtered_arr = filter_coordinates(raw_numpy_arr, coordinate_dims=1, medfilt_kernel_size=1)
     assert ((abs(filtered_arr[:] - raw_numpy_arr[:]) < 0.00001).all())
+
+def test_compute_hdi() -> None:
+    nums = np.tile(np.random.permutation(np.arange(0, 101)), (3, 1)).T
+    assert((compute_hdi(nums)[0] == np.array([2.5, 2.5, 2.5])).all())
+    assert((compute_hdi(nums)[1] == np.array([97.5, 97.5, 97.5])).all())
+
+
 
 
 

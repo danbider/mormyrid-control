@@ -24,11 +24,13 @@ def load_object(filename: str) -> Any:
     with open(filename, "rb") as input:  # note rb and not wb
         return pickle.load(input)
 
+
 @typechecked
 def sort_alphanumeric(data: list):
     convert = lambda text: int(text) if text.isdigit() else text.lower()
     alphanum_key = lambda key: [convert(c) for c in re.split("([0-9]+)", key)]
     return sorted(data, key=alphanum_key)
+
 
 @typechecked
 def set_or_open_folder(folder_path: str) -> str:
@@ -38,6 +40,7 @@ def set_or_open_folder(folder_path: str) -> str:
     else:
         print("The folder already exists at: {}".format(folder_path))
     return folder_path
+
 
 @typechecked
 def write_video_from_directory(image_dir: str, out_file: str, fps: int):
@@ -126,13 +129,13 @@ def plot_chin_spline(
     out_file,
     start_frame=0,
     end_frame=-1,
-    dpi=128
+    dpi=128,
 ):
     img_array = []
 
     chin_trial_arr_copy = np.copy(chin_trial_arr)
     chin_trial_arr_copy -= np.expand_dims(chin_trial_arr_copy[:, 0, :], 1)
-    #chin_trial_arr_copy[:, :, 2] -= 
+    # chin_trial_arr_copy[:, :, 2] -=
     # Get global mins/maxes for plotting
     # NOTE: using percentile here to deal with outliers
     x_min = np.min(chin_trial_arr_copy[start_frame:end_frame, :, 0])
@@ -145,13 +148,13 @@ def plot_chin_spline(
 
     if end_frame == -1:
         end_frame = chin_trial_arr_copy.shape[0]
-        
+
     assert end_frame >= start_frame
 
     for frame_idx in tqdm(range(start_frame, end_frame)):
         chin_frame_points = chin_trial_arr_copy[frame_idx]
         max_curvature = np.max(curvatures[frame_idx])
-        
+
         x = chin_frame_points[:, 0]
         y = chin_frame_points[:, 1]
         z = chin_frame_points[:, 2]
@@ -214,13 +217,16 @@ def plot_chin_spline(
 
     write_video_from_list(img_array=img_array, out_file=out_file, fps=50)
 
+
 @typechecked
-def plot_trial_curvature(curvatures: np.ndarray, central_moment: str = "mean") -> matplotlib.figure.Figure:
-    if central_moment=="mean":
+def plot_trial_curvature(
+    curvatures: np.ndarray, central_moment: str = "mean"
+) -> matplotlib.figure.Figure:
+    if central_moment == "mean":
         central = np.mean(curvatures, axis=0)
         stderrs = np.std(curvatures, axis=0) / np.sqrt(np.shape(curvatures)[0])
-        lows = central-stderrs
-        highs = central+stderrs
+        lows = central - stderrs
+        highs = central + stderrs
         fill_between_label = "stderr"
 
     elif central_moment == "median":
@@ -230,39 +236,65 @@ def plot_trial_curvature(curvatures: np.ndarray, central_moment: str = "mean") -
         highs = hdi[1]
         fill_between_label = "hdi"
 
-    fig, ax = plt.subplots(1,1)
-    ax.plot(np.arange(curvatures.shape[1]), central, color = 'blue', label = central_moment)
-    ax.fill_between(np.arange(curvatures.shape[1]), lows,highs, color = 'cyan', label=fill_between_label)
-    ax.set_xlabel('chin segment')
-    ax.set_ylabel('curvature')
+    fig, ax = plt.subplots(1, 1)
+    ax.plot(np.arange(curvatures.shape[1]), central, color="blue", label=central_moment)
+    ax.fill_between(
+        np.arange(curvatures.shape[1]),
+        lows,
+        highs,
+        color="cyan",
+        label=fill_between_label,
+    )
+    ax.set_xlabel("chin segment")
+    ax.set_ylabel("curvature")
     ax.legend()
     return fig
 
+
 @typechecked
-def plot_single_frame_curvature_per_dim(evals: np.ndarray,
-                                        chin_trial_arr: np.ndarray,
-                                        frame_idx: int,
-                                        curvatures: np.ndarray,
-                                        interpolation_points: np.ndarray) -> matplotlib.figure.Figure:
-    fig, axs = plt.subplots(1,4)
+def plot_single_frame_curvature_per_dim(
+    evals: np.ndarray,
+    chin_trial_arr: np.ndarray,
+    frame_idx: int,
+    curvatures: np.ndarray,
+    interpolation_points: np.ndarray,
+) -> matplotlib.figure.Figure:
+    fig, axs = plt.subplots(1, 4)
     titles = ["x", "y", "z", "curvature"]
     x_vals = np.arange(5)
     for i, ax in enumerate(axs):
         ax.set_title(titles[i])
-        if i<len(axs)-1:
-            ax.plot(interpolation_points, evals[frame_idx, i, :], color = 'gray')
-            ax.scatter(x_vals, chin_trial_arr[frame_idx, :, i], color = 'black')
+        if i < len(axs) - 1:
+            ax.plot(interpolation_points, evals[frame_idx, i, :], color="gray")
+            ax.scatter(x_vals, chin_trial_arr[frame_idx, :, i], color="black")
         else:
-            ax.plot(curvatures[frame_idx, 5:], color = 'gray')
+            ax.plot(curvatures[frame_idx, 5:], color="gray")
     fig.tight_layout()
     return fig
 
 
 @typechecked
-def reshape_trial_dframe(example_trial: pd.core.frame.DataFrame) -> tuple([np.ndarray, list]):
-    chin_trial_df = example_trial.filter(regex='chin')
-    chin_trial_arr = np.reshape(chin_trial_df.values, (chin_trial_df.values.shape[0], -1, 3))
-    # Get bodypart names
+def get_chin_dframe(example_trial: pd.core.frame.DataFrame) -> pd.core.frame.DataFrame:
+    filtered = example_trial.filter(regex="chin")  # filter out non-chin body parts
+    ordered_bps = [
+        "chin_base",
+        "chin1_4",
+        "chin_half",
+        "chin3_4",
+        "chin_tip",
+    ]  # enforce order
+    return filtered[ordered_bps]
+
+
+@typechecked
+def reshape_trial_dframe(
+    example_trial: pd.core.frame.DataFrame,
+) -> tuple([np.ndarray, list]):
+    chin_trial_df = get_chin_dframe(example_trial)  # see function above.
+    chin_trial_arr = np.reshape(
+        chin_trial_df.values, (chin_trial_df.values.shape[0], -1, 3)
+    )
+    # Get bodypart names (TODO: not sure this is necassary considering the reordering)
     bp_names = []
     for col in chin_trial_df.columns:
         if col[0] not in bp_names:
@@ -270,11 +302,43 @@ def reshape_trial_dframe(example_trial: pd.core.frame.DataFrame) -> tuple([np.nd
 
     return chin_trial_arr, bp_names
 
+
 @typechecked
-def compute_hdi(arr: np.ndarray, percentage: float = 95.0)->tuple([np.ndarray, np.ndarray]):
-    '''arr: np.ndarray(shape = (num_frames, num_interpolation_points))
-    returns: a tupple with "low" and "high" arrays, each np.ndarray(shape = (num_interpolation_points,))'''
-    alpha_over_two_percentage = (100. - percentage)/2.
+def compute_hdi(
+    arr: np.ndarray, percentage: float = 95.0
+) -> tuple([np.ndarray, np.ndarray]):
+    """arr: np.ndarray(shape = (num_frames, num_interpolation_points))
+    returns: a tupple with "low" and "high" arrays, each np.ndarray(shape = (num_interpolation_points,))"""
+    alpha_over_two_percentage = (100.0 - percentage) / 2.0
     low_percentile = alpha_over_two_percentage
-    high_percentile = 100.-alpha_over_two_percentage
-    return (np.percentile(arr, low_percentile, axis=0), np.percentile(arr, high_percentile, axis=0))
+    high_percentile = 100.0 - alpha_over_two_percentage
+    return (
+        np.percentile(arr, low_percentile, axis=0),
+        np.percentile(arr, high_percentile, axis=0),
+    )
+
+
+@typechecked
+def make_empty_hierarchical_dict(unique_names: list, unique_conds: list) -> dict:
+    trial_dict = {}
+    for name in unique_names:
+        trial_dict[name] = {}
+        for cond in unique_conds:
+            trial_dict[name][cond] = []
+    return trial_dict
+
+
+@typechecked
+def trial_summary_to_arr(
+    all_trial_summary: dict, metric: str, fish: str, cond: str
+) -> np.ndarray:
+    """This function gets a dict with results, a metric to look, fish and condition name, and returns an array with the metric"""
+    arr = np.zeros(
+        (
+            len(all_trial_summary[fish][cond]),
+            np.shape(all_trial_summary[fish][cond][-1][metric])[0],
+        )
+    )
+    for i, curr_dict in enumerate(all_trial_summary[fish][cond]):
+        arr[i, :] = curr_dict[metric]
+    return arr

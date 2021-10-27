@@ -25,6 +25,7 @@ def compute_curvature_function(x, y, z):
             + (z[1] + 2 * z[0] * t) ** 2
         ) ** (3.0 / 2.0)
         return numerator / denominator
+
     return curve_func
 
 
@@ -102,14 +103,42 @@ def compute_curvature_per_frame(
     # NOTE: the first value is high; should be discarded
     return curvatures
 
+
 @typechecked
-def filter_coordinates(raw_numpy_arr: np.ndarray, coordinate_dims: int = 3, medfilt_kernel_size: int = 11) -> np.ndarray:
+def filter_coordinates(
+    raw_numpy_arr: np.ndarray, coordinate_dims: int = 3, medfilt_kernel_size: int = 11
+) -> np.ndarray:
     filtered_arr = np.zeros_like(raw_numpy_arr)
-    assert(raw_numpy_arr.shape[1]%coordinate_dims == 0) # make sure the number of cols is divisible by coordinate dims
-    num_bodyparts = raw_numpy_arr.shape[1]//coordinate_dims
+    assert (
+        raw_numpy_arr.shape[1] % coordinate_dims == 0
+    )  # make sure the number of cols is divisible by coordinate dims
+    num_bodyparts = raw_numpy_arr.shape[1] // coordinate_dims
     for i in range(num_bodyparts):
-        col_inds = np.arange(i + i*(coordinate_dims-1),i + i*(coordinate_dims-1) + coordinate_dims)
-        filtered_arr[:, col_inds] = medfilt(raw_numpy_arr[:, col_inds], medfilt_kernel_size)
+        col_inds = np.arange(
+            i + i * (coordinate_dims - 1),
+            i + i * (coordinate_dims - 1) + coordinate_dims,
+        )
+        filtered_arr[:, col_inds] = medfilt(
+            raw_numpy_arr[:, col_inds], medfilt_kernel_size
+        )
     return filtered_arr
 
 
+@typechecked
+def summarize_curvature(
+    curvature_arr: np.ndarray, metric: str = "mean", differences: bool = False
+) -> np.ndarray:
+    if differences:  # work with the frame-by-frame differences to account for movement
+        num_rows_pre_diff = curvature_arr.shape[0]
+        curvature_arr = np.diff(curvature_arr, axis=0)
+        assert curvature_arr.shape[0] == num_rows_pre_diff - 1
+    if metric == "mean":
+        return np.nanmean(curvature_arr, axis=0)
+    if metric == "median":
+        return np.nanmedian(curvature_arr, axis=0)
+    if metric == "max":
+        return np.nanmax(curvature_arr, axis=0)
+    if metric == "stderr":
+        return np.nanstd(curvature_arr, axis=0) / np.sqrt(curvature_arr.shape[0])
+    else:
+        raise (ValueError('The requested summary "%s" is not supported.' % metric))

@@ -138,6 +138,8 @@ dmypy.json
 *.png
 *.jpg
 *.eps
+*.svg
+mrmrd_ctrl/*.svg
 
 # videos
 *.avi
